@@ -24,23 +24,27 @@ async def login():
     headers = {
         "Content-Type": "application/x-www-form-urlencoded"
     }
-    payload = 'csrf_token=&userid=beckyanderson23g&password=CqA5v9BvI6J0&token_affiliate_login=2eed4d63883d9ed92399'
+    # payload = 'csrf_token=&userid=beckyanderson23g&password=CqA5v9BvI6J0&token_affiliate_login=2eed4d63883d9ed92399'
+    payload = 'csrf_token=&userid=emilymurphy965df&password=L4AYLVa97S&token_affiliate_login=2eed4d63883d9ed92399'
     async with aiohttp.ClientSession() as session:
-        async with session.post('https://affiliate.hide-my-ip.com/login.php', data=payload, headers=headers) as response:
+        async with session.post('https://affiliate.simplybook.me/login.php', data=payload, headers=headers) as response:
             print(response)
             print(response.text)
             content = await response.read()  # Read the response content as bytes
             pageSource = content.decode('utf-8')  # Decode the bytes to a string
             soup = BeautifulSoup(pageSource, "html.parser")
-            print(soup.prettify())
             a = soup.select(".heading")
             print(a)
             values = [element.text.strip() for element in a]            
             print(values)
             f = values[len(values) - 1]
+            f = f.replace(" ", "")
             f_split = f.split('\n\n')
             print(f_split)
             print(f)
+            print(f.replace(" ", ""))
+            # no_space_string = original_string.replace(" ", "")
+
             # emailResponseToken = response.headers['Set-Cookie']
     return;
     emailHeaders = {
