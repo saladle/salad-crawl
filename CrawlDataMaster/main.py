@@ -5,6 +5,7 @@ import asyncio
 import xlsxwriter
 from bs4 import BeautifulSoup
 import json
+from datetime import datetime
 
 
 BASE_URL = 'https://app.getreditus.com/login/'
@@ -21,6 +22,10 @@ async def crawlDataMaster(args):
         return await crawlDataLeaddyno(loginRequestUrl, email, password)
     elif base == 'iDevaffiliate':
         return await crawlDataIDevaffiliate(loginRequestUrl, email, password)
+    elif base == 'hasoffers':
+        return await crawlDataHasoffers(loginRequestUrl, email, password)
+    elif base == 'contadu':
+        return await crawlDataContadu(loginRequestUrl, email, password)
 
 
 async def crawlDataReditus(loginRequestUrl, email, password):
@@ -34,6 +39,14 @@ async def crawlDataLeaddyno(loginRequestUrl, email, password):
 
 async def crawlDataIDevaffiliate(loginRequestUrl, email, password):
     return await getDataIDevaffiliate(loginRequestUrl, email, password)
+
+
+async def crawlDataHasoffers(loginRequestUrl, email, password):
+    return await getDataHasoffers(loginRequestUrl, email, password)
+
+
+async def crawlDataContadu(loginRequestUrl, email, password):
+    return await getDataContadu(loginRequestUrl, email, password)
 
 
 async def getTokenReditus(loginRequestUrl, email, password):
@@ -165,6 +178,101 @@ async def getDataIDevaffiliate(loginRequestUrl, email, password):
             return result_dict
 
 
+async def getDataHasoffers(loginRequestUrl, email, password):
+    getSessionIdHeaders = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36",
+        "accept":	"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-encoding":	"gzip, deflate, br",
+        "connection": "keep-alive",
+        "cookie":	"EUcomp=1",
+        "content-type":	"application/x-www-form-urlencoded",
+    }
+    # getSessionIdPayload = '_method=POST&data%5B_Token%5D%5Bkey%5D=a18812cb90d4183e44a6fb33ba70e35b5fbf5428&data%5BUser%5D%5Bemail%5D=evenelson380df%40gmail.com&data%5BUser%5D%5Bpassword%5D=A61yIU8g4%21f%29&data%5B_Token%5D%5Bfields%5D=56b682232e568ff7c2e5968393c245234b610de2%253An%253A0%253A%257B%257D'
+    getSessionIdPayload = {
+        'data[User][email]': email,
+        'data[User][password]': password,
+    }
+    # Get session id
+    async with aiohttp.ClientSession() as session:
+        async with session.post(loginRequestUrl, data=getSessionIdPayload, headers=getSessionIdHeaders, allow_redirects=False) as response:
+            responseCookies = response.cookies.get('PHPSESSID')
+            sessionId = responseCookies.key + "=" + responseCookies.value
+
+    getTokenHeaders = {
+        "Cookie": sessionId
+    }
+    getTokenUrl = loginRequestUrl + 'publisher/'
+    async with aiohttp.ClientSession() as session:
+        async with session.get(getTokenUrl, headers=getTokenHeaders) as response:
+            content = await response.read()
+            pageSource = content.decode('utf-8')
+            soup = BeautifulSoup(pageSource, "html.parser")
+            try:
+                script_tag = soup.find(
+                    'script', text=lambda t: 'session_token' in t)
+                if script_tag:
+                    # Extract the session_token value from the script tag
+                    session_token = script_tag.text.split(
+                        '"session_token":"')[1].split('",')[0]
+
+                    print("Session Token:", session_token)
+                else:
+                    print("Session Token not found.")
+            except:
+                print("Hasoffers: Error extracting Session Token")
+                return
+
+    # Get data
+    getDataPayload = {
+        "fields[]": ["Stat.impressions", "Stat.clicks", "Stat.conversions", "Stat.payout"],
+        "Method": "getStats",
+        "NetworkId": "vipre",
+        "SessionToken": session_token,
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post('https://api-p03.hasoffers.com/v3/Affiliate_Report.json', data=getDataPayload) as response:
+            content = await response.text()
+            response_json = json.loads(content)
+            if 'response' in response_json:
+                # print(response_json['response']['data']['data'][0]['Stat'])
+                return response_json['response']['data']['data']
+            else:
+                print("Has offer: No 'response' attribute in the JSON content.")
+
+
+async def getDataContadu(loginRequestUrl, email, password):
+    # Get session id
+    getSessionIdPayload = {
+        "email": email,
+        "password": password,
+        "redirect_url": "/"
+    }
+    completeLoginRequestUrl = loginRequestUrl + 'login'
+    async with aiohttp.ClientSession() as session:
+        async with session.post(completeLoginRequestUrl, data=getSessionIdPayload, allow_redirects=False) as response:
+            responseCookies = response.cookies.get('contai_session_id')
+            sessionId = responseCookies.key + "=" + responseCookies.value
+    # Get data
+    getDataHeader = {
+        "Cookie": sessionId
+    }
+    getDataUrl = loginRequestUrl + 'affiliate'
+    async with aiohttp.ClientSession() as session:
+        async with session.get(getDataUrl, headers=getDataHeader) as response:
+            content = await response.read()
+            pageSource = content.decode('utf-8')
+            soup = BeautifulSoup(pageSource, "html.parser")
+            data = []
+            for row in soup.select('table[data-export_fname="aff_daily_stats"] tbody tr'):
+                date = row.select('td')[0].text.strip()
+                clicks = row.select('td')[1].text.strip()
+                unique_ips = row.select('td')[2].text.strip()
+                entry = {'date': date, 'clicks': clicks,
+                         'unique IPs': unique_ips}
+                data.append(entry)
+    return data
+
+
 async def main():
     data = [
         ('reditus', 'https://api.getreditus.com/auth/sign_in',
@@ -179,6 +287,14 @@ async def main():
          'beckyanderson23g', 'CqA5v9BvI6J0'),
         ('iDevaffiliate', 'https://affiliate.simplybook.me/login.php',
          'emilymurphy965df', 'L4AYLVa97S'),
+        ('hasoffers', 'https://affiliate.vipre.com/',
+         'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+        ('hasoffers', 'https://affiliate.vipre.com/',
+         'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
+        ('hasoffers', 'https://affiliate.vipre.com/',
+         'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
+        ('contadu', 'https://app.neuronwriter.com/ucp/',
+         'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
     ]
     results = await pl.task.map(crawlDataMaster, data, workers=100)
     print(results)
