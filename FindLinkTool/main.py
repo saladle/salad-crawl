@@ -9,6 +9,8 @@ cssLinkList = [
 ]
 
 websiteName = "AscendEX"
+maximumLinksAtOnce = 20
+
 # Start a new session with Playwright using the sync_playwright function.
 with sync_playwright() as playwright:
     # Kết nối tới trình duyệt đang mở sẵn với debug port 9222
@@ -27,6 +29,7 @@ with sync_playwright() as playwright:
     css_link_elements = page.query_selector_all('link[rel="stylesheet"]')
 
     cssLinkList = [element.get_attribute('href') for element in css_link_elements]
+    numberOfLinks = len(cssLinkList)
 
     print(str(len(cssLinkList)) + " link css:")
     print(cssLinkList)
@@ -36,7 +39,8 @@ with sync_playwright() as playwright:
     page.goto("https://ads.google.com/aw/assetreport/associations/sitelink?ocid=1131763371")
 
     # Ấn vào dấu cộng
-    addButtonElement = page.wait_for_selector('.content._ngcontent-awn-CM-37')
+    # addButtonElement = page.wait_for_selector('.content._ngcontent-awn-CM-37')
+    addButtonElement = page.wait_for_selector('._ngcontent-awn-CM-29._nghost-awn-CM-30')
     addButtonElement.click()
     page.wait_for_load_state()
 
@@ -46,7 +50,7 @@ with sync_playwright() as playwright:
     page.wait_for_load_state()
     option3Element = page.wait_for_selector('.item._nghost-awn-CM_EDITING-40._ngcontent-awn-CM_EDITING-22:nth-child(3)')
     option3Element.click()
-    page.wait_for_load_state()
+    page.wait_for_load_state()    
     
     # Chọn Website traffic-Search-1
     campaignElement = page.wait_for_selector('.particle-table-row.particle-table-last-row')
@@ -108,6 +112,13 @@ with sync_playwright() as playwright:
     # web4NameInputElement[15].fill(cssLinkList[3])
     web4NameInputElement[15].fill("https:" + cssLinkList[3])
     page.wait_for_load_state()
+
+    # Mở hết tất cả 20 tab nhập link
+    for i in range(16):
+        addLinkElement = page.wait_for_selector('.content._ngcontent-awn-CM_EDITING-9')
+        addLinkElement.click()
+        page.wait_for_load_state()
+    
     # # Ấn nút lưu
     # saveButtonElement = page.wait_for_selector('.btn.btn-yes._nghost-awn-CM_EDITING-9._ngcontent-awn-CM_EDITING-7.highlighted')
     # saveButtonElement.click()
